@@ -86,6 +86,20 @@ class PasetoTokenService implements TokenIssuer, TokenVerifier
             $claims['grace_until'] = $graceUntil->format('c');
         }
 
+        // Product binding (CodexLab CRITICAL-1): carry the license scope in the
+        // SIGNED payload so a verifier can reject a token issued for another
+        // product under the same trust root. Additive + backward-compatible: a
+        // scopeless license (the package's generic, single-product use) gets no
+        // claim and behaves exactly as before. `license_scope_id` is the canonical
+        // numeric binding; `scope_slug` is the stable, client-checkable form.
+        // Does NOT change signing/keys/cert handling — only the claim set.
+        if ($license->license_scope_id !== null) {
+            $claims['license_scope_id'] = $license->license_scope_id;
+            if ($scope) {
+                $claims['scope_slug'] = $scope->slug;
+            }
+        }
+
         $token = Builder::getPublic($privateKey, new Version4)
             ->setIssuedAt($now)
             ->setNotBefore($now)
